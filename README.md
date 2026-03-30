@@ -1,6 +1,4 @@
-# Unified Building Height Model for St. Petersburg
-
-**Changellenge Cup IT 2026 | MTS Case**
+**Changellenge Cup IT 2026 Final | Единая модель высотности зданий**
 
 Построение единой модели высотности зданий Санкт-Петербурга для планирования телекоммуникационной сети.
 
@@ -34,7 +32,7 @@ jupyter notebook
 
 ### 01_cleaning.ipynb — Очистка данных
 - Исправление невалидных геометрий (`make_valid`, explode MULTIPOLYGON)
-- Фильтрация: площадь < 8 м² (мусор оцифровки), здания за пределами СПб
+- Фильтрация: площадь < 8 м$^2$ (мусор оцифровки), здания за пределами СПб
 - Восстановление пропущенных высот через `stairs * avg_floor_height`
 - **Вход:** `cup_it_example_src_A.csv`, `cup_it_example_src_B.csv`
 - **Выход:** `data/cleaned_a.parquet`, `data/cleaned_b.parquet`
@@ -51,7 +49,7 @@ Graph-based entity resolution для геообъектов:
 ### 03_height_model.ipynb — Предсказание высот
 - 73 признака: геометрические (8), контекстуальные (20 на 5 масштабах), spatial lag (4), категориальные + пространственные (37+), target encoding (3)
 - Ensemble: 0.7 * XGBoost + 0.3 * RandomForest
-- Метрики (full features): MAE 0.33м, RMSE 2.2м, R² 0.98
+- Метрики (full features): MAE 0.33м, RMSE 2.2м, R$^2$ 0.98
 - Метрики (only_A, реальный use case): MAE ~3.0м, 70% зданий < 3м ошибки
 - **Выход:** `data/final.parquet`, `data/final.csv`, `data/shp/buildings_spb.shp`
 
@@ -79,7 +77,7 @@ Graph-based entity resolution для геообъектов:
 
 | Параметр | Значение | Обоснование |
 |----------|----------|-------------|
-| `min_area_a` | 8 м² | Индустрия: 20-40 м². Консервативный порог |
+| `min_area_a` | 8 м$^2$ | Индустрия: 20-40 м$^2$. Консервативный порог |
 | `iou_threshold` | 0.1 | Протестировано 0.01-0.5 на 4 районах |
 | `overlap_threshold` | 0.3 | Ловит маленький Б внутри большого А |
 | `centroid_max_dist` | 20 м | Сдвиг между источниками до 20м |
