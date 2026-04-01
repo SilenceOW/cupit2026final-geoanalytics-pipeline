@@ -175,22 +175,10 @@ jupyter notebook
 │
 ├── export_rf_geojson.py         # Экспорт данных для web-карты
 ├── insights_analysis.py         # Генерация графиков для презентации
-├── pipeline_report.md           # Технический отчёт по pipeline
-│
-├── experiments/                 # 30+ экспериментов (MLP, GNN, Kriging, ...)
-├── web/                         # Интерактивная карта (Leaflet.js)
-│   ├── index.html
-│   └── data/                    # GeoJSON по районам + RF grid
-├── data/                        # Промежуточные данные (генерируются pipeline)
-│   ├── cleaned_a.parquet
-│   ├── cleaned_b.parquet
-│   ├── unified.parquet
-│   ├── final.parquet / final.csv
-│   ├── shp/buildings_spb.shp
-│   └── xgb_model.pkl
-│
-└── cup_it_example_src_A.csv     # Исходные данные (не в репо)
-    cup_it_example_src_B.csv
+└── web/                         # Интерактивная карта (Leaflet.js)
+    ├── index.html
+    └── data/                    # GeoJSON по районам + RF grid
+
 ```
 
 ---
