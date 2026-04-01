@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Высотность зданий СПб | МТС</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #0f0f1a; color: #fff; }
+
+  #map { position: fixed; top: 0; left: 280px; right: 0; bottom: 0; z-index: 1; }
+
+  .sidebar {
+    position: fixed; top: 0; left: 0; width: 280px; height: 100vh;
+    background: #1a1a2e; overflow-y: auto; z-index: 10;
+    display: flex; flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 20px 16px 12px;
+    background: #E30611;
+    flex-shrink: 0;
+  }
+  .sidebar-header h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
+  .sidebar-header p { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+
+  .sidebar-stats {
+    padding: 12px 16px;
+    background: #16213e;
+    font-size: 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .sidebar-stats .stat { display: flex; justify-content: space-between; margin: 3px 0; }
+  .sidebar-stats .val { color: #E30611; font-weight: 700; }
+
+  .mode-toggle {
+    display: flex;
+    margin: 12px 16px 4px;
+    background: #0f0f1a;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+    flex-shrink: 0;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 9px 4px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .mode-btn.active { background: #E30611; color: #fff; }
+  .mode-btn:hover:not(.active) { color: #ccc; background: #16213e; }
+
+  .sidebar-section { padding: 12px 16px; flex-shrink: 0; }
+  .sidebar-section h3 { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  .district-btn {
+    display: block; width: 100%; padding: 10px 12px; margin-bottom: 4px;
+    background: #16213e; border: 1px solid #2a2a4a; border-radius: 6px;
+    color: #ccc; font-size: 13px; cursor: pointer; text-align: left;
+    transition: all 0.15s;
+  }
+  .district-btn:hover { background: #1f2f50; border-color: #E30611; color: #fff; }
+  .district-btn.active { background: #E30611; border-color: #E30611; color: #fff; font-weight: 600; }
+
+  .legend {
+    padding: 12px 16px;
+    flex-shrink: 0;
+    border-top: 1px solid #2a2a4a;
+  }
+  .legend h3 { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; margin: 4px 0; font-size: 12px; }
+  .legend-color { width: 16px; height: 12px; border-radius: 2px; margin-right: 8px; flex-shrink: 0; }
+
+  .loader {
+    position: fixed; top: 50%; left: calc(50% + 140px); transform: translate(-50%, -50%);
+    background: rgba(26,26,46,0.95); padding: 20px 30px; border-radius: 10px;
+    font-size: 14px; z-index: 100; display: none;
+  }
+  .loader.show { display: block; }
+
+  .info-panel {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    background: rgba(26,26,46,0.95); padding: 12px 16px; border-radius: 8px;
+    font-size: 12px; max-width: 280px; display: none;
+    line-height: 1.6;
+  }
+  .info-panel.show { display: block; }
+  .info-panel .h { font-size: 24px; font-weight: 800; color: #E30611; }
+  .info-panel .zone-label { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .info-panel .rec-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #2a2a4a; }
+  .info-panel .rec-row:last-child { border-bottom: none; }
+  .info-panel .rec-type { color: #999; }
+  .info-panel .rec-val { font-weight: 700; }
+
+  @media (max-width: 768px) {
+    .sidebar { width: 100%; height: auto; max-height: 40vh; position: relative; }
+    #map { position: relative; left: 0; height: 60vh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>ВЫШЕ КРЫШИ</h1>
+    <p>Единая модель высотности зданий СПб</p>
+    <p style="margin-top:2px; font-size:10px; opacity:0.6;">Changellenge Cup IT 2026 | МТС</p>
+  </div>
+
+  <div class="sidebar-stats" id="stats">
+    <div class="stat"><span>Всего зданий</span><span class="val">196,807</span></div>
+    <div class="stat"><span>С реальной высотой</span><span class="val">82%</span></div>
+    <div class="stat"><span>ML-предсказанных</span><span class="val">36,057</span></div>
+    <div class="stat"><span>Выбран район</span><span class="val" id="stat-district">—</span></div>
+    <div class="stat"><span>Зданий на карте</span><span class="val" id="stat-count">—</span></div>
+  </div>
+
+  <div class="sidebar-section" id="district-section">
+    <h3>Районы</h3>
+    <div id="district-list"></div>
+  </div>
+
+  <div class="legend" id="legend-container"></div>
+
+  <div style="margin-top:auto; flex-shrink:0; padding:12px 16px; border-top:1px solid #2a2a4a;">
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="mode-height" onclick="setMode('height')">Высотность</button>
+      <button class="mode-btn" id="mode-rf" onclick="setMode('rf')">RF-планирование</button>
+    </div>
+  </div>
+</div>
+
+<div id="map"></div>
+<div class="loader" id="loader">Загрузка...</div>
+<div class="info-panel" id="info"></div>
+
+<script>
+const map = L.map('map', {zoomControl: false}).setView([59.94, 30.32], 12);
+L.control.zoom({position: 'topright'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
+}).addTo(map);
+
+let buildingLayer = null;
+let rfLayer = null;
+let currentMode = 'height';
+
+// === Height mode ===
+
+function heightColor(h) {
+  if (h <= 5) return '#2b83ba';
+  if (h <= 15) return '#abdda4';
+  if (h <= 30) return '#ffffbf';
+  if (h <= 50) return '#fdae61';
+  return '#d7191c';
+}
+
+function buildingStyle(feature) {
+  return {
+    fillColor: heightColor(feature.properties.height || 0),
+    color: '#555', weight: 0.8, fillOpacity: 0.7,
+  };
+}
+
+function onBuildingHover(feature, layer) {
+  layer.on('mouseover', function() {
+    this.setStyle({weight: 2.5, color: '#fff'}); this.bringToFront();
+    const p = feature.properties;
+    const info = document.getElementById('info');
+    info.innerHTML = `
+      <div class="h">${(p.height||0).toFixed(1)} м</div>
+      <div style="margin-top:4px;">
+        Источник: <b>${p.height_source === 'ml_predicted' ? 'ML' : 'Источник Б'}</b><br>
+        Тип: ${p.match_type || '—'}
+      </div>`;
+    info.classList.add('show');
+  });
+  layer.on('mouseout', function() {
+    if (buildingLayer) buildingLayer.resetStyle(this);
+    document.getElementById('info').classList.remove('show');
+  });
+}
+
+// === RF mode ===
+
+const ZONE_COLORS = {
+  highrise: '#e74c3c',
+  urban:    '#f39c12',
+  suburban: '#27ae60',
+  rural:    '#3498db',
+};
+const ZONE_NAMES = {
+  highrise: 'Высотные ЖК, центр',
+  urban:    'Городская застройка',
+  suburban: 'Пригородная',
+  rural:    'Малоэтажная / сельская',
+};
+const ZONE_BS = {
+  highrise: 'Микросота + Пикосота',
+  urban:    'Микросота',
+  suburban: 'Макросота',
+  rural:    'Макросота',
+};
+
+// RF_GRID format: [lat, lon, zone, n_buildings, h_p90, h_median, density, macro_h, sc_h, pico_h]
+
+function buildRfLayer() {
+  if (!window.RF_GRID) return null;
+  const group = L.layerGroup();
+
+  window.RF_GRID.forEach(function(c) {
+    const lat = c[0], lon = c[1], zone = c[2];
+    const n = c[3], h_p90 = c[4], h_median = c[5];
+    const macro_h = c[7], sc_h = c[8], pico_h = c[9];
+
+    const circle = L.circle([lat, lon], {
+      radius: 500,
+      fillColor: ZONE_COLORS[zone] || '#888',
+      fillOpacity: 0.35,
+      color: ZONE_COLORS[zone] || '#888',
+      weight: 0.5,
+      opacity: 0.5,
+    });
+
+    circle.on('mouseover', function() {
+      this.setStyle({fillOpacity: 0.6, weight: 2, opacity: 1});
+      this.bringToFront();
+      const info = document.getElementById('info');
+      const bsType = ZONE_BS[zone];
+      // Pick the primary antenna height for the zone
+      const antH = (zone === 'highrise' || zone === 'urban') ? sc_h : macro_h;
+      info.innerHTML = `
+        <div class="zone-label" style="color:${ZONE_COLORS[zone]}">${ZONE_NAMES[zone]}</div>
+        <div class="rec-row"><span class="rec-type">Зданий в зоне</span><span class="rec-val">${n}</span></div>
+        <div class="rec-row"><span class="rec-type">Рекомендуемая сота</span><span class="rec-val">${bsType}</span></div>
+        <div class="rec-row"><span class="rec-type">Высота размещения</span><span class="rec-val">${antH} м</span></div>
+      `;
+      info.classList.add('show');
+    });
+
+    circle.on('mouseout', function() {
+      this.setStyle({fillOpacity: 0.35, weight: 0.5, opacity: 0.5});
+      document.getElementById('info').classList.remove('show');
+    });
+
+    group.addLayer(circle);
+  });
+
+  return group;
+}
+
+// === Legend ===
+
+function renderLegend() {
+  const c = document.getElementById('legend-container');
+  if (currentMode === 'rf') {
+    c.innerHTML = `
+      <h3>Тип зоны покрытия</h3>
+      <div class="legend-item"><div class="legend-color" style="background:${ZONE_COLORS.highrise}"></div> Высотная &mdash; Микро/Пикосота</div>
+      <div class="legend-item"><div class="legend-color" style="background:${ZONE_COLORS.urban}"></div> Городская &mdash; Микросота</div>
+      <div class="legend-item"><div class="legend-color" style="background:${ZONE_COLORS.suburban}"></div> Пригородная &mdash; Макросота</div>
+      <div class="legend-item"><div class="legend-color" style="background:${ZONE_COLORS.rural}"></div> Сельская &mdash; Макросота</div>
+      <div style="margin-top:8px; border-top:1px solid #2a2a4a; padding-top:8px; font-size:11px; color:#888; line-height:1.5;">
+        Наведите на зону для<br>рекомендации по размещению
+      </div>
+    `;
+  } else {
+    c.innerHTML = `
+      <h3>Высота зданий</h3>
+      <div class="legend-item"><div class="legend-color" style="background:#2b83ba"></div> &le; 5 м</div>
+      <div class="legend-item"><div class="legend-color" style="background:#abdda4"></div> 5 &ndash; 15 м</div>
+      <div class="legend-item"><div class="legend-color" style="background:#ffffbf"></div> 15 &ndash; 30 м</div>
+      <div class="legend-item"><div class="legend-color" style="background:#fdae61"></div> 30 &ndash; 50 м</div>
+      <div class="legend-item"><div class="legend-color" style="background:#d7191c"></div> &gt; 50 м</div>
+      <div style="margin-top:8px; border-top:1px solid #2a2a4a; padding-top:8px;">
+        <div class="legend-item"><div class="legend-color" style="background:transparent; border:2px solid #888;"></div> Контур = полигон здания</div>
+      </div>
+    `;
+  }
+}
+
+// === Mode switch ===
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-height').classList.toggle('active', mode === 'height');
+  document.getElementById('mode-rf').classList.toggle('active', mode === 'rf');
+  document.getElementById('district-section').style.display = mode === 'rf' ? 'none' : 'block';
+  document.getElementById('info').classList.remove('show');
+  renderLegend();
+
+  if (mode === 'rf') {
+    // Hide buildings, show RF grid
+    if (buildingLayer) { map.removeLayer(buildingLayer); }
+    if (!rfLayer) {
+      rfLayer = buildRfLayer();
+    }
+    if (rfLayer) {
+      rfLayer.addTo(map);
+      map.flyTo([59.93, 30.35], 11, {duration: 1});
+      document.getElementById('stat-district').textContent = 'Весь СПб';
+      document.getElementById('stat-count').textContent = window.RF_GRID ? window.RF_GRID.length.toLocaleString() + ' зон' : '—';
+    }
+  } else {
+    // Hide RF grid, restore buildings
+    if (rfLayer) { map.removeLayer(rfLayer); }
+    // Reload active district
+    const active = document.querySelector('.district-btn.active');
+    if (active) { active.click(); }
+    else { loadDistrict(districts[0]); }
+  }
+}
+
+// === District loading (height mode) ===
+
+function loadDistrict(d) {
+  if (currentMode === 'rf') return;
+  const loader = document.getElementById('loader');
+  loader.classList.add('show');
+
+  if (buildingLayer) { map.removeLayer(buildingLayer); buildingLayer = null; }
+  document.querySelectorAll('.district-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + d.id).classList.add('active');
+
+  if (window.GEO && window.GEO[d.id]) {
+    renderDistrict(d, window.GEO[d.id]);
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = 'data/' + d.id + '.js';
+  script.onload = function() {
+    if (window.GEO && window.GEO[d.id]) renderDistrict(d, window.GEO[d.id]);
+  };
+  script.onerror = function() {
+    console.error('Failed to load', d.id);
+    loader.classList.remove('show');
+  };
+  document.head.appendChild(script);
+}
+
+function renderDistrict(d, geojson) {
+  buildingLayer = L.geoJSON(geojson, { style: buildingStyle, onEachFeature: onBuildingHover }).addTo(map);
+  map.flyTo([d.lat, d.lon], 16, {duration: 1});
+  document.getElementById('stat-district').textContent = d.name;
+  document.getElementById('stat-count').textContent = geojson.features.length.toLocaleString();
+  document.getElementById('loader').classList.remove('show');
+}
+
+// === Init ===
+
+const districts = [
+  {"id":"center","name":"Центр (Невский/Садовая)","lat":59.935,"lon":30.325,"r":0.006},
+  {"id":"petrogradskaya","name":"Петроградская","lat":59.965,"lon":30.31,"r":0.006},
+  {"id":"vasilievsky","name":"Васильевский остров","lat":59.94,"lon":30.27,"r":0.006},
+  {"id":"south","name":"Спальный юг (Купчино)","lat":59.83,"lon":30.38,"r":0.007},
+  {"id":"vyborgskaya","name":"Выборгская сторона","lat":59.99,"lon":30.35,"r":0.006},
+  {"id":"primorsky","name":"Приморский район","lat":59.99,"lon":30.25,"r":0.006},
+  {"id":"moskovskiy","name":"Московский проспект","lat":59.89,"lon":30.32,"r":0.006},
+  {"id":"nevsky","name":"Невский район","lat":59.9,"lon":30.45,"r":0.007},
+  {"id":"admiralteysky","name":"Адмиралтейский","lat":59.925,"lon":30.3,"r":0.005},
+  {"id":"kalininsky","name":"Калининский","lat":59.97,"lon":30.38,"r":0.007}
+];
+
+renderLegend();
+
+const list = document.getElementById('district-list');
+districts.forEach(d => {
+  const btn = document.createElement('button');
+  btn.className = 'district-btn';
+  btn.id = 'btn-' + d.id;
+  btn.innerHTML = d.name;
+  btn.onclick = () => loadDistrict(d);
+  list.appendChild(btn);
+});
+
+// Preload RF grid
+const rfScript = document.createElement('script');
+rfScript.src = 'data/rf_grid.js';
+document.head.appendChild(rfScript);
+
+// Load first district
+loadDistrict(districts[0]);
+</script>
+
+</body>
+</html>
