@@ -206,3 +206,11 @@ jupyter notebook
 3. SIGMOD 2025 — 3dSAGER: Geospatial Entity Resolution
 4. MDPI 2022 — Spatial Autocorrelation in ML Models
 5. MDPI 2024 — Building Height Extraction via Spatial Clustering + Random Forest
+
+---
+
+## License
+
+This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+For commercial use, contact the authors.
